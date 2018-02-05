@@ -128,10 +128,10 @@ class tf(object):
     def step(self, *args):
         """ Step response """
         return signal.lti(self.numerator, self.denominator).step(*args)
-    
+
     def lsim(self, *args):
         """ Negative step response """
-        return signal.lsim(signal.lti(self.numerator, self.denominator), *args)  
+        return signal.lsim(signal.lti(self.numerator, self.denominator), *args)
 
     def simplify(self, dec=3):
 
@@ -143,12 +143,12 @@ class tf(object):
 
         ps_to_canc_ind, zs_to_canc_ind = common_roots_ind(ps, zs)
         cancelled = cancel_by_ind(ps, ps_to_canc_ind)
-        
+
         places = 10
         if cancelled > 0:
             cancel_by_ind(zs, zs_to_canc_ind)
             places = dec
-        
+
         self.numerator = numpy.poly1d(
             [round(i.real, places) for i in k*numpy.poly1d(zs, True)])
         self.denominator = numpy.poly1d(
@@ -750,8 +750,8 @@ def common_roots_ind(a, b, dec=3):
     #Returns the indices of common (approximately equal) roots
     #of two polynomials
     a_ind = []  # Contains index of common roots
-    b_ind = []  
-    
+    b_ind = []
+
     for i in range(len(a)):
         for j in range(len(b)):
             if abs(a[i]-b[j]) < 10**-dec:
@@ -795,7 +795,7 @@ def polygcd(a, b):
 def polylcm(a, b):
     #Finds the approximate lowest common multiple of
     #two polynomials
-    
+
     a_roots = a.r.tolist()
     b_roots = b.r.tolist()
     a_common, b_common = common_roots_ind(a_roots, b_roots)
@@ -1305,7 +1305,7 @@ def sym2mimotf(Gmat, deadtime=None):
     ...                   [1/(s + 3), 1/(s + 4)]])
 
     >>> deadtime = numpy.matrix([[1, 5], [0, 3]])
-    
+
     >>> sym2mimotf(G, deadtime)
     mimotf([[tf([ 1.], [ 1.  1.], deadtime=1) tf([ 1.], [ 1.  2.], deadtime=5)]
      [tf([ 1.], [ 1.  3.]) tf([ 1.], [ 1.  4.], deadtime=3)]])
@@ -1321,7 +1321,7 @@ def sym2mimotf(Gmat, deadtime=None):
         return  Exception("Matrix dimensions incompatible")
     else:
         DT = deadtime
-                
+
     for i in range(rows):
         for j in range(cols):
             G = Gmat[i, j]
@@ -1876,14 +1876,14 @@ def kalman_controllable(A, B, C, P=None, RP=None):
     array([[ 0.   ,  1.387,  0.053]])
     """
     nstates = A.shape[1]  # Compute the number of states
-    
+
     #Calculate controllability matrix if necessary
     if P is None:
         _, _, P = state_controllability(A, B)
-        
+
     # Find rank of the controllability matrix if necessary
     if RP is None:
-        RP = numpy.linalg.matrix_rank(P) 
+        RP = numpy.linalg.matrix_rank(P)
 
     if RP == nstates:
 
@@ -1923,7 +1923,7 @@ def kalman_observable(A, B, C, Q=None, RQ=None):
          Observability matrix
     RQ : (optional) int
          Rank of observability matrxi
-         
+
     Returns
     -------
     Ao : numpy matrix
@@ -1966,10 +1966,10 @@ def kalman_observable(A, B, C, Q=None, RQ=None):
     # Compute the observability matrix if necessary
     if Q is None:
         Q = state_observability_matrix(A, C)
-        
+
     # Compute rank of observability matrix if necessary
     if RQ is None:
-        RQ = numpy.linalg.matrix_rank(Q) 
+        RQ = numpy.linalg.matrix_rank(Q)
 
     if RQ == nstates:
 
@@ -2066,7 +2066,7 @@ def minimal_realisation(a, b, c):
     """
     # number of states
     n_states = numpy.shape(a)[0]
-    
+
     # obtain the controllability matrix
     _, _, C = state_controllability(a, b)
 
@@ -2086,7 +2086,7 @@ def minimal_realisation(a, b, c):
         ObsCont = state_observability_matrix(Ac, Cc)
         rank_ObsCont = numpy.linalg.matrix_rank(ObsCont.T)
         n_statesC = numpy.shape(Ac)[0]
-        
+
         if rank_ObsCont < n_statesC:
             Aco, Bco, Cco = kalman_observable(
                 Ac, Bc, Cc, Q=ObsCont, RQ=rank_ObsCont)
@@ -2111,8 +2111,18 @@ def minimal_realisation(a, b, c):
 
     return Aco, Bco, Cco
 
-
 def num_denom(A, symbolic_expr=False):
+    """
+    Produces a tuple containing the numerator and denominator polynomial
+    of a utils.tf or utils.mimotf object. Can also return a simple
+    symbolic expression for the numerator and denominator.
+
+    :param A: utils.tf or utils.mimotf object
+    :param symbolic_expr: Boolean, false by default. If true returns a
+        symbolic representation.
+    :return: First returned value is the numerator, second is the
+        denominator
+    """
 
     sym_den = 0
     sym_num = 0
@@ -2125,47 +2135,37 @@ def num_denom(A, symbolic_expr=False):
         denom = [numpy.poly1d(denom) *
                  numpy.poly1d(A.matrix[0, j].denominator.coeffs)
                  for j in range(A.matrix.shape[1])]
-        num = [numpy.poly1d(num) *
-               numpy.poly1d(A.matrix[0, j].numerator.coeffs)
+        num = [numpy.poly1d(num)
+               * numpy.poly1d(A.matrix[0, j].numerator.coeffs)
                for j in range(A.matrix.shape[1])]
-        if symbolic_expr is True:
-            for n in range(len(denom)):
-                sym_den = (sym_den + denom[- n - 1] * s**n).simplify()
-            for n in range(len(num)):
-                sym_num = (sym_num + num[- n - 1] * s**n).simplify()
-            return sym_num, sym_den
-        else:
-            return num, denom
-
     elif type(A) == tf:
-        denom = []
-        num = []
 
         denom = [list(A.denominator.coeffs)[n] for n in range(
             len(list(A.denominator.coeffs)))]
         num = [list(A.numerator.coeffs)[n] for n in range(
             len(list(A.numerator.coeffs)))]
-        if symbolic_expr is True:
-            for n in range(len(denom)):
-                sym_den = (sym_den + denom[- n - 1] * s**n).simplify()
-            for n in range(len(num)):
-                sym_num = (sym_num + num[- n - 1] * s**n).simplify()
-            return sym_num, sym_den
-        else:
-            return num, denom
-"""
-    else:
-        sym_num, sym_den = A.as_numer_denom()
-        if not symbolic_expr:
-            num_poly   = sympy.Poly(sym_num)
-            numer      = [float(k) for k in num_poly.all_coeffs()]
-            den_poly   = sympy.Poly(sym_den)
-            denom      = [float(k) for k in den_poly.all_coeffs()]
-            return numer, denom
-        else:
-            return sym_num, sym_den
-"""
 
+    if symbolic_expr is True:
+        for n in range(len(denom)):
+            sym_den = (sym_den + denom[- n - 1] * s**n).simplify()
+        for n in range(len(num)):
+            sym_num = (sym_num + num[- n - 1] * s**n).simplify()
+        return sym_num, sym_den
+    else:
+        return num, denom
+
+    """
+        else:
+            sym_num, sym_den = A.as_numer_denom()
+            if not symbolic_expr:
+                num_poly   = sympy.Poly(sym_num)
+                numer      = [float(k) for k in num_poly.all_coeffs()]
+                den_poly   = sympy.Poly(sym_den)
+                denom      = [float(k) for k in den_poly.all_coeffs()]
+                return numer, denom
+            else:
+                return sym_num, sym_den
+    """
 
 def minors(G, order):
     '''
@@ -2226,7 +2226,7 @@ def poles(G):
         G = sym2mimotf(G)
 
     lcm = lcm_of_all_minors(G)
-    
+
     return lcm.r
 
 
@@ -2407,7 +2407,7 @@ def zero_directions_ss(A, B, C, D):
     """
     This function calculates the zeros with input and output directions from
     a state space representation using the method outlined on pg. 140
-    
+
     Parameters
     ----------
     A : numpy matrix
@@ -2430,10 +2430,10 @@ def zero_directions_ss(A, B, C, D):
     Ig = numpy.zeros_like(M)
     d = numpy.arange(A.shape[0])
     Ig[d, d] = 1
-    
+
     eigvals_in, zeros_in = scipy.linalg.eig(M, b=Ig)
     eigvals_out, zeros_out = scipy.linalg.eig(M.T, b=Ig)
-    
+
     #The input vector direction is given by u_z as shown in eq. 4.66.
     #The length of the vector is the same as the number of columns
     #in the B matrix.
@@ -2441,7 +2441,7 @@ def zero_directions_ss(A, B, C, D):
     for i in range(len(eigvals_in)):
         if numpy.isfinite(eigvals_in[i]) and eigvals_in[i] != 0:
             eigvals_in_dir.append([eigvals_in[i], zeros_in[-B.shape[1]:,i]])
-    
+
     #Similar to the input vector
     #The length of the vector is the same as the number of rows
     #in the C matrix.
@@ -2449,19 +2449,19 @@ def zero_directions_ss(A, B, C, D):
     for i in range(len(eigvals_out)):
         if numpy.isfinite(eigvals_out[i]) and eigvals_out[i] != 0:
             eigvals_out_dir.append([eigvals_out[i], zeros_out[-C.shape[0]:,i]])
-            
+
     #The eigenvalues are returned in no specific order. Sorting ensures
     #that the input and output directions get matched to the correct zero
     #value
     eigvals_in_dir.sort(key = lambda x: abs(x[0]))
     eigvals_out_dir.sort(key = lambda x: abs(x[0]))
-    
+
     zeros_in_out = []
     for i in range(len(eigvals_in_dir)):
-        zeros_in_out.append([eigvals_in_dir[i][0], 
+        zeros_in_out.append([eigvals_in_dir[i][0],
                              eigvals_in_dir[i][1],
                              eigvals_out_dir[i][1]])
-    
+
     return zeros_in_out
 
 ###############################################################################
