@@ -14,7 +14,7 @@ import scipy.linalg as sc_linalg
 from functools import reduce
 import itertools
 
-import tf
+from tf_class import tf
 
 def astf(maybetf):
     """
