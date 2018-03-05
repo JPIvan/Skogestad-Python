@@ -338,4 +338,11 @@ class tf(TransferFunction):
         )
         
     def step(system, X0=None, T=None, N=None):
+        """
+            Defined for compatibility with function that called the old
+            tf class.
+
+            New code should use scipy.signal.step
+        """
+
         return __scipy_signal_step__(system, X0, T, N)
