@@ -4,8 +4,9 @@ from numpy import array, asmatrix, dot, matrix
 
 from scipy.signal import TransferFunction
 from scipy.signal.filter_design import normalize
+from scipy.signal import step as __scipy_signal_step__
 
-from sympy import exp, N, poly, symbols
+from sympy import exp, N, poly, symbols, sympify
 from sympy.solvers import solve
 
 from IPython.display import display, Latex, Math
@@ -33,6 +34,30 @@ def iterablepoly_to_sympypoly(iterable_poly, coeff_order='high-to-low'):
 
     return sympy_poly
 
+def sympypoly_to_iterablepoly(sympy_poly, coeff_order='high-to-low'):
+    sympy_numberobjects = (
+        type(sympify(0)),
+        type(sympify(1)),
+        type(sympify(2)),
+        type(sympify(0.0))
+    )
+    
+    if type(sympy_poly) in sympy_numberobjects:
+        iterable_poly = [sympy_poly] 
+
+        # Creating this list like this is necessary because sympy does
+        # not define generators to create iterables for these objects
+    else:
+        iterable_poly = poly(sympy_poly).all_coeffs()
+        if coeff_order == 'low-to-high':
+            iterable_poly.reverse()
+
+    iterable_poly = [float(coeff) for coeff in iterable_poly]
+
+    # This casting is necessary because the TransferFunction base class
+    # cannot handle sympy.Float objects
+
+    return iterable_poly
 
 class tf(TransferFunction):
     """
@@ -142,6 +167,9 @@ class tf(TransferFunction):
             Adding objects with different deadtimes is not supported.
         """
 
+        if not isinstance(other, tf):
+            other = tf(other)
+
         if not self.deadtime == other.deadtime:
             if not self.zerogain or other.zerogain:
                 raise("Adding tfs with different deadtimes not supported.")
@@ -152,12 +180,8 @@ class tf(TransferFunction):
         ntf_sympy_num = ntf.as_numer_denom()[0].expand()
         ntf_sympy_den = ntf.as_numer_denom()[1].expand()
 
-        ntf_num, ntf_den = \
-            poly(ntf_sympy_num).all_coeffs(), \
-            poly(ntf_sympy_den).all_coeffs()
-
-        # This casting is necessary because the TransferFunction base class
-        # cannot handle sympy.Float objects
+        ntf_num = sympypoly_to_iterablepoly(ntf_sympy_num)
+        ntf_den = sympypoly_to_iterablepoly(ntf_sympy_den)
 
         ntf_num = [float(coeff) for coeff in ntf_num]
         ntf_den = [float(coeff) for coeff in ntf_den]
@@ -210,15 +234,8 @@ class tf(TransferFunction):
         ntf_sympy_num = ntf.as_numer_denom()[0].expand()
         ntf_sympy_den = ntf.as_numer_denom()[1].expand()
 
-        ntf_num, ntf_den = \
-            poly(ntf_sympy_num).all_coeffs(), \
-            poly(ntf_sympy_den).all_coeffs()
-
-        # This casting is necessary because the TransferFunction base class
-        # cannot handle sympy.Float objects
-
-        ntf_num = [float(coeff) for coeff in ntf_num]
-        ntf_den = [float(coeff) for coeff in ntf_den]
+        ntf_num = sympypoly_to_iterablepoly(ntf_sympy_num)
+        ntf_den = sympypoly_to_iterablepoly(ntf_sympy_den)
 
         return tf(ntf_num, ntf_den, deadtime=self.deadtime+other.deadtime)
 
@@ -319,3 +336,6 @@ class tf(TransferFunction):
         self.num, self.den = normalize(
             self.num, self.den
         )
+        
+    def step(system, X0=None, T=None, N=None):
+        return __scipy_signal_step__(system, X0, T, N)
