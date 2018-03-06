@@ -1,6 +1,6 @@
 from copy import copy
 
-from numpy import array, asmatrix, dot, matrix, ndarray, angle
+import numpy
 
 from scipy import optimize
 
@@ -18,7 +18,7 @@ from sympy.printing import latex
 
 import matplotlib.pyplot as plot
 
-from plotformat import plot_setfontsizes, plot_doformatting, plot_format
+from plotformat import *
 
 init_printing()
 
@@ -68,7 +68,7 @@ def sympypoly_to_iterablepoly(sympy_poly, coeff_order='high-to-low'):
 
 def __margins__(G):
     """
-    Should only be used in functions that plot bode plots, tf class
+    Should only be used in functions that plot bode plots or similar, tf class
     implements this.
 
     Calculates the gain and phase margins, together with the gain and phase
@@ -93,7 +93,7 @@ def __margins__(G):
 
     def mod(x):
         """to give the function to calculate |G(jw)| = 1"""
-        if isinstance(x, ndarray):
+        if isinstance(x, numpy.ndarray):
             return G.mod(x[0]) - 1
         else:
             return G.mod(x) - 1
@@ -103,18 +103,42 @@ def __margins__(G):
 
     def arg(x):
         """function to calculate the phase angle at -180 deg"""
-        if isinstance(x, ndarray):
-            return angle(G.w(x[0])) + pi
+        if isinstance(x, numpy.ndarray):
+            return numpy.angle(G.w(x[0])) + pi
         else:
-            return angle(G.w(x)) + pi
+            return numpy.angle(G.w(x)) + pi
 
     # where the freqeuncy is calculated where arg G(jw) = -180 deg
     w_180 = optimize.fsolve(arg, wc)[0]
 
-    PM = angle(G.w(wc), deg=True) + 180
+    PM = numpy.angle(G.w(wc), deg=True) + 180
     GM = 1/G.mod(w_180)
 
     return GM, PM, wc, w_180
+
+def __phase__(z, deg=False):
+    """
+    Return the phase angle in degrees or radians
+
+    Parameters
+    ----------
+    z : complex number
+    deg : booleans
+        True if radians result is required, otherwise degree is default
+        (optional).
+
+    Returns
+    -------
+    phase : float
+        Phase angle.
+
+   """
+    if deg:
+        discont = 180
+    else:
+        discont = numpy.pi
+        
+    return numpy.angle(z, deg=deg) - discont
 
 class tf(TransferFunction):
     """
@@ -285,8 +309,8 @@ class tf(TransferFunction):
             Multiplies two tf objects.
         """
 
-        if isinstance(other, matrix):
-            return dot(other, self)
+        if isinstance(other, numpy.matrix):
+            return numpy.dot(other, self)
         else:
             other = tf(other)
 
@@ -432,6 +456,9 @@ class tf(TransferFunction):
         |G(jw)| : magnitude of tf response
         """
         return float(Abs(self.w(w)))
+
+    def margins(self):
+        return __margins__(self)
         
     def step(system, X0=None, T=None, N=None):
         """
@@ -486,7 +513,7 @@ class tf(TransferFunction):
             
         return GM, PM, wc, w_180
     
-    def bodeclosedloop_plot(self, G, K=1, w=None, n=1000, printmargins=False):
+    def bodeclosedloop_plot(self, G, K=1, w=None, n=1000, printmargins=False, bodeplotformat=None):
         """
         Shows the bode plot for a controller model
 
@@ -499,57 +526,53 @@ class tf(TransferFunction):
         """
 
         if not w:
-            w = logspace(-2, 2, n)
+            w = numpy.logspace(-2, 2, n)
         elif len(w) == 2:
-            w = logspace(w[0], w[1], n)
+            w = numpy.logspace(w[0], w[1], n)
 
-        L = ndarray([G(1j*wi) * K(1j*wi) for w in w])
-        S = utils.feedback(1, L)
-        T = utils.feedback(L, 1)
+        Ltf = G*K
+        Stf = 1/(1+Ltf)
+        Ttf = Ltf/(1+Ltf)
+
+        L = [Ltf(1j*wi) for wi in w]
+        L_abs = [abs(i) for i in L]
+
+        S = [Stf(1j*wi) for wi in w]
+        S_abs = [abs(i) for i in S]
+
+        T = [Ttf(1j*wi) for wi in w]
+        T_abs = [abs(i) for i in T]
 
         plot_setfontsizes()
         fig = plot.figure(figsize=(16, 9))
-        ax = fig.add_subplot(2, 1, 1)
+        ax1 = fig.add_subplot(2, 1, 1)
 
-        ax.subplot(2, 1, 1)
-        ax.loglog(w, abs(L), label="L")
-        ax.loglog(w, abs(S), label="S")
-        ax.loglog(w, abs(T), label="T")
-        maxes = ( max(abs(L)), max(abs(S)), max(abs(T)) )
-        mins = ( min(abs(L)), min(abs(S)), min(abs(T)) )
+        ax1.loglog(w, L_abs, label="L")
+        ax1.loglog(w, S_abs, label="S")
+        ax1.loglog(w, T_abs, label="T")
+        ax1.plot(w, 2**-0.5 * numpy.ones(len(w)), linestyle='dotted')
+        maxes = (float(i) for i in (max(L_abs), max(T_abs), max(T_abs)))
+        mins = (float(i) for i in (min(L_abs), min(S_abs), min(T_abs)))
+        # Casting performed for type compatibility in matplotlib functions
 
-        plotformat = plot_format(
-            fig=fig,
-            fig_title="Example 2.4, Figure 2.7",
-            ax_title="",
-            xlabel="Frequency $[rad/s]$",
-            ylabel="Magnitude",
-            xlim=(min(w), max(w)),
-            ylim=(min(mins), max(maxes)),
-            grid=True,
-            legend=True
-        )
-        plot_doformatting(ax, plotformat)
+        bodeplotformat['xlim_mag'] = (min(w), max(w))
+        bodeplotformat['ylim_mag'] = (min(mins), max(maxes))
 
-        if margin:
-            plt.plot(w, 1/numpy.sqrt(2) * numpy.ones(len(w)), linestyle='dotted')
+        ax2 = fig.add_subplot(2, 1, 2)
 
-        plt.subplot(2, 1, 2)
-        plt.semilogx(w, utils.phase(L, deg=True))
-        plt.semilogx(w, utils.phase(S, deg=True))
-        plt.semilogx(w, utils.phase(T, deg=True))
-        maxes = ( max(L), max(S), max(T) )
-        mins = ( min(L), min(S), min(T) )
-        
-        plotformat = plot_format(
-            fig=fig,
-            fig_title="Example 2.4, Figure 2.7",
-            ax_title="",
-            xlabel="Frequency $[rad/s]$",
-            ylabel="Phase",
-            xlim=(min(w), max(w)),
-            ylim=(min(mins), max(maxes)),
-            grid=True,
-            legend=True
-        )
-        plot_doformatting(ax, plotformat)
+        L_phase = [__phase__(complex(i), deg=True) for i in L]
+        S_phase = [__phase__(complex(i), deg=True) for i in S]
+        T_phase = [__phase__(complex(i), deg=True) for i in T]
+
+        ax2.semilogx(w, L_phase)
+        ax2.semilogx(w, S_phase)
+        ax2.semilogx(w, T_phase)
+        maxes = (float(i) for i in (max(L_phase), max(S_phase), max(T_phase)))
+        mins = (float(i) for i in (min(L_phase), min(S_phase), min(T_phase)))
+        # Casting performed for type compatibility in matplotlib functions
+
+        bodeplotformat['xlim_phase'] = (min(w), max(w))
+        bodeplotformat['ylim_phase'] = (min(mins), max(maxes))
+
+        plot_doformatting(ax1, bodeplotformat, fig=fig, ax2=ax2)
+        plot.show()

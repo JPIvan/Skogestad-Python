@@ -52,7 +52,8 @@ class bode_plot_format(plot_format):
     _valid_kwargs = (
         'fig', 'fig_title', 'ax_title_mag', 'ax_title_phase',
         'xlabel_mag', 'ylabel_mag', 'xlabel_phase', 'ylabel_phase',
-        'xlim', 'ylim', 'grid', 'legend', 'subplotadj_left',
+        'xlim_mag', 'xlim_phase', 'ylim_mag', 'ylim_phase', 'grid',
+        'legend', 'subplotadj_left',
         'subplotadj_right', 'subplotadj_top', 'subplotadj_bottom',
         'subplotadj_wspace', 'subplotadj_hspace'
     )
@@ -68,9 +69,8 @@ class bode_plot_format(plot_format):
                 for k in plot_format.valid_kwargs \
                 if k in bode_plot_format.valid_kwargs
             })
-            formats[-1]['ax_title'] = self['ax_title'+subplot]
-            formats[-1]['xlabel'] = self['xlabel'+subplot]
-            formats[-1]['ylabel'] = self['ylabel'+subplot]
+            for f in ('ax_title', 'xlabel', 'ylabel', 'xlim', 'ylim'):
+                formats[-1][f] = self[f+subplot]
         
         for i, v in enumerate(formats):
             formats[i] = plot_format(**v)

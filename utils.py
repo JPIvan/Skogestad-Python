@@ -886,11 +886,11 @@ def ControllerTuning(G, method='ZN'):
 
     settings = {'ZN': [0.45, 0.83], 'TT': [0.31, 2.2]}
 
-    GM, PM, wc, w_180 = margins(G)
-    Ku = numpy.abs(1 / G(1j * w_180))
-    Pu = numpy.abs(2 * numpy.pi / w_180)
-    Kc = Ku * settings.get(method)[0]
-    Taui = Pu * settings.get(method)[1]
+    GM, PM, wc, w_180 = G.margins()
+    Ku = float(numpy.abs(1 / G(1j * w_180)))
+    Pu = float(numpy.abs(2 * numpy.pi / w_180))
+    Kc = float(Ku * settings.get(method)[0])
+    Taui = float(Pu * settings.get(method)[1])
 
     return Kc, Taui, Ku, Pu
 
