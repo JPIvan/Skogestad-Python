@@ -1,6 +1,8 @@
 from copy import copy
 
-from numpy import array, asmatrix, dot, matrix
+from numpy import array, asmatrix, dot, matrix, ndarray, angle
+
+from scipy import optimize
 
 from scipy.signal import TransferFunction
 from scipy.signal.filter_design import normalize
@@ -89,23 +91,27 @@ def __margins__(G):
         phase crossover frequency where angle[G(jw_180] = -180 deg
     """
 
-    Gw = freq(G)
-
     def mod(x):
         """to give the function to calculate |G(jw)| = 1"""
-        return numpy.abs(Gw(x[0])) - 1
+        if isinstance(x, ndarray):
+            return G.mod(x[0]) - 1
+        else:
+            return G.mod(x) - 1
 
     # how to calculate the freqeuncy at which |G(jw)| = 1
-    wc = optimize.fsolve(mod, 0.1)
+    wc = optimize.fsolve(mod, 0.1)[0]
 
-    def arg(w):
+    def arg(x):
         """function to calculate the phase angle at -180 deg"""
-        return numpy.angle(G.w(w[0])) + pi
+        if isinstance(x, ndarray):
+            return angle(G.w(x[0])) + pi
+        else:
+            return angle(G.w(x)) + pi
 
     # where the freqeuncy is calculated where arg G(jw) = -180 deg
-    w_180 = optimize.fsolve(arg, wc)
+    w_180 = optimize.fsolve(arg, wc)[0]
 
-    PM = numpy.angle(G.w(wc), deg=True) + 180
+    PM = angle(G.w(wc), deg=True) + 180
     GM = 1/G.mod(w_180)
 
     return GM, PM, wc, w_180
@@ -146,8 +152,8 @@ class tf(TransferFunction):
             dt (float): Sampling time
 
         Attributes:
-            numerator (iterable): Numerator polynomial
-            denominator (iterable): Denominator polynomial
+            numerator (sympy expression): Numerator polynomial
+            denominator (sympy expression): Denominator polynomial
             deadtime (int): #TODO
             zerogain (bool): #TODO
             name (str): #TODO
@@ -437,7 +443,7 @@ class tf(TransferFunction):
 
         return __scipy_signal_step__(system, X0, T, N)
     
-    def bode_plot(self, w=None, n=100):
+    def bode_plot(self, w=None, n=100, printmargins=False):
         """
             Plot a bode plot of the transfer function using scipy.signal.bode()
 
@@ -451,7 +457,14 @@ class tf(TransferFunction):
         fig = plot.figure(figsize=(16, 9))
         ax = fig.add_subplot(2, 1, 1)
         
-        ax.semilogx(w, mag)    # Bode magnitude plot
+        ax.semilogx(w, mag)
+        ax.semilogx(
+            [w_180, w_180], [min(mag), max(mag)],
+            label="Gain Margin",
+            linestyle="dotted",
+            color='m'
+        )
+        ax.semilogx(wc,0.1,'ro')
         
         plot_doformatting(
             ax,
@@ -466,8 +479,17 @@ class tf(TransferFunction):
             legend=True,
             spadj_hspc=0.25
         )
-        
+
         ax = fig.add_subplot(2, 1, 2)
+
+        ax.semilogx(w, phase)
+        ax.semilogx(
+            [wc, wc], [min(phase), max(phase)],
+            label="Phase Margin",
+            linestyle="dotted",
+            color='r'
+        )
+        ax.semilogx(w_180,-180,'mo')
 
         plot_doformatting(
             ax,
@@ -481,9 +503,12 @@ class tf(TransferFunction):
             grid=True,
             legend=True
         )
-
-        ax.semilogx(w, phase)  # Bode phase plot
         
         plot.show()
-        print("Gain Margin: ", GM)
-        print("Phase Margin: ", PM)
+        if printmargins:
+            print("Gain Margin: ", GM)
+            print("w_c: ", wc)
+            print("Phase Margin: ", PM)
+            print("w_180: ", w_180)
+            
+        return GM, PM, wc, w_180
