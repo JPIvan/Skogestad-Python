@@ -1,6 +1,6 @@
 from copy import copy
 
-from numpy import array, asmatrix, dot, matrix, ndarray, angle
+import numpy
 
 from scipy import optimize
 
@@ -18,7 +18,7 @@ from sympy.printing import latex
 
 import matplotlib.pyplot as plot
 
-from plotformat import plot_setfontsizes, plot_doformatting, plot_format
+from plotformat import *
 
 init_printing()
 
@@ -68,7 +68,7 @@ def sympypoly_to_iterablepoly(sympy_poly, coeff_order='high-to-low'):
 
 def __margins__(G):
     """
-    Should only be used in functions that plot bode plots, tf class
+    Should only be used in functions that plot bode plots or similar, tf class
     implements this.
 
     Calculates the gain and phase margins, together with the gain and phase
@@ -93,7 +93,7 @@ def __margins__(G):
 
     def mod(x):
         """to give the function to calculate |G(jw)| = 1"""
-        if isinstance(x, ndarray):
+        if isinstance(x, numpy.ndarray):
             return G.mod(x[0]) - 1
         else:
             return G.mod(x) - 1
@@ -309,8 +309,8 @@ class tf(TransferFunction):
             Multiplies two tf objects.
         """
 
-        if isinstance(other, matrix):
-            return dot(other, self)
+        if isinstance(other, numpy.matrix):
+            return numpy.dot(other, self)
         else:
             other = tf(other)
 
