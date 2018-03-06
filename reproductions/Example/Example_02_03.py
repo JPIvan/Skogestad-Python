@@ -1,13 +1,27 @@
 from __future__ import print_function
 
 import numpy as np
+from numpy import logspace
 import scipy as sp
 import matplotlib.pyplot as plt
+
+from utils import tf
 
 
 # TODO: This should be reworked!
 # This version is not really a rework, but provides clearer output
 # Calculation reworked for transfer functions of any order
+
+# Define system
+
+s = tf([1, 0], [1])
+G = 3*(-2*s + 1)/((10*s + 1)*(5*s + 1))
+
+# Method 1
+
+# Method 2
+
+G.bode_plot(w=logspace(-2, 1, 400))
 
 # Input transfer function and Proportional controller range
 Gk = 3.0

@@ -43,6 +43,48 @@ import utils
 import doc_func as df
 
 
+def plot_setfontsizes(
+    figure_title=28, axes_title=24, axes_label=20, legend=16, xtick=16,
+    ytick=16, font=8
+):
+    plt.rc('figure', titlesize=figure_title)
+    plt.rc('axes', titlesize=axes_title)
+    plt.rc('axes', labelsize=axes_label)
+    plt.rc('xtick', labelsize=xtick)
+    plt.rc('ytick', labelsize=ytick)
+    plt.rc('legend', fontsize=legend)
+    plt.rc('font', size=font)
+
+
+def plot_doformatting(
+    ax, fig=None, fig_title=None, ax_title=None, xlabel=None, ylabel=None,
+    xlim=None, ylim=None, grid=False, legend=False
+):
+    if fig and fig_title:
+        fig.suptitle(fig_title)
+
+    if ax_title:
+        ax.set_title(ax_title)
+
+    if xlabel:
+        ax.set_xlabel(xlabel)
+
+    if ylabel:
+        ax.set_ylabel(ylabel)
+
+    if xlim:
+        ax.set_xlim(xlim)
+
+    if ylim:
+        ax.set_ylim(ylim)
+
+    if grid:
+        ax.grid()
+
+    if legend:
+        ax.legend()
+
+
 def adjust_spine(xlabel, ylabel, x0=0, y0=0, width=1, height=1):
     """
     General function to adjust the margins for subplots.
@@ -97,13 +139,13 @@ def plot_freq_subplot(plt, w, direction, name, color, figure_num):
         plt.title(name)
         plt.semilogx(w, direction[i, :], color)
 
-        
+
 def complexplane(args, color=True, marker='o', msize=5):
     """
     Plot up to 8 arguments on a complex plane (limited by the colors)
     Useful when you wish to compare sets of complex numbers graphically or
     plot your poles and zeros
-    
+
     Parameters
     ----------
     args : A list of the list of numbers to plot
@@ -112,13 +154,13 @@ def complexplane(args, color=True, marker='o', msize=5):
     marker : Type of marker to use
              https://matplotlib.org/api/markers_api.html
     msize : Size of the marker
-    
+
     Example:
         A = [1+2j, 1-2j, 1+1j, 2-1j]
         B = [1+2j, 3+2j, 1, 1+2j]
         complexplane([A, B, [1+3j, 2+5j]], marker='+', msize=8)
     """
-    
+
     fig = plt.figure()
     axes = fig.add_subplot(111)
     #define color index
@@ -131,9 +173,9 @@ def complexplane(args, color=True, marker='o', msize=5):
     count = 0
     for a in args:
         for items in a:
-            plt.plot(items.real, items.imag, colors[count]+marker, markersize=msize)           
+            plt.plot(items.real, items.imag, colors[count]+marker, markersize=msize)
         count += 1
-        
+
     plt.ylabel('Im')
     plt.xlabel('Re')
     plt.grid(True)
@@ -145,8 +187,8 @@ def complexplane(args, color=True, marker='o', msize=5):
     rangeY = Yaxes[1] - Yaxes[0]
     axes.set_xlim(Xaxes[0]-0.1*rangeX, Xaxes[1]+0.1*rangeX)
     axes.set_ylim(Yaxes[0]-0.1*rangeY, Yaxes[1]+0.1*rangeY)
-    
-    
+
+
 ###############################################################################
 #                                Chapter 2                                    #
 ###############################################################################
@@ -185,11 +227,6 @@ def bode(G, w_start=-2, w_end=2, axlim=None, points=1000, margin=False):
     plt.subplot(2, 1, 1)
     gains = numpy.abs(G(s))
     plt.loglog(w, gains)
-    if margin:
-        plt.axvline(w_180, color='black')
-        plt.text(w_180,
-                 numpy.average([numpy.max(gains), numpy.min(gains)]),
-                 r'$\angle$G(jw) = -180$\degree$')
     plt.axhline(1., color='red', linestyle='--')
     plt.axis(axlim)
     plt.grid()
@@ -199,19 +236,28 @@ def bode(G, w_start=-2, w_end=2, axlim=None, points=1000, margin=False):
     plt.subplot(2, 1, 2)
     phaseangle = utils.phase(G(s), deg=True)
     plt.semilogx(w, phaseangle)
-    if margin:
-        plt.axvline(wc, color='black')
-        plt.text(wc,
-                 numpy.average([numpy.max(phaseangle), numpy.min(phaseangle)]),
-                 '|G(jw)| = 1')
     plt.axhline(-180., color='red', linestyle='--')
     plt.axis(axlim)
     plt.grid()
     plt.ylabel('Phase')
     plt.xlabel('Frequency [rad/unit time]')
 
-    return GM, PM
+    # Phase and Gain Margins
+    if margin:
+        lines = (
+            (1, wc, phaseangle, r'$\angle$G(jw) = -180$\degree$'),
+            (2, w_180, gains, '|G(jw)| = 1')
+        )
+        for subplot_num, freq, bounds, legend in lines:
+            plt.subplot(subplot_num, 1, 1)
+            plt.axvline(freq, color='black')
+            plt.text(
+                freq,
+                numpy.average([numpy.max(bounds), numpy.min(bounds)]),
+                legend
+            )
 
+    return GM, PM
 
 def bodeclosedloop(G, K, w_start=-2, w_end=2,
                    axlim=None, points=1000, margin=False):

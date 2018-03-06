@@ -1,29 +1,50 @@
-import matplotlib.pyplot as plt
-import numpy as np
+import matplotlib.pyplot as plot
+from numpy import linspace
 
 from utils import feedback, tf
+from utilsplot import plot_setfontsizes, plot_doformatting
 
-# Process model of G with various Controller Gains
-s = tf([1, 0], 1)
+from scipy.signal import step
+
+# Define system
+
+s = tf([1, 0], [1])
 G = 3*(-2*s + 1)/((10*s + 1)*(5*s + 1))
 
-# Configure plot and generate timespan
-tspan = np.linspace(0, 50, 100)
-plt.figure('Figure 2.6')
-plt.title('Effect of proportional gain Kc on closed loop response')
+# Prepare data for figure plotting and formatting
 
-#  Calculate the time domain response
-Ks = [0.5, 1.5, 2, 2.5, 3.0]
-for K in Ks:
-    T = feedback(G * K, 1)
-    [t, y] = T.step(0, tspan)
-    if K >= 3.0:
-        plt.plot(t, y, '-.')
-    else:
-        plt.plot(t, y)
+gains = (0.5, 1.5, 2.5, 3)
+plotcolours = [[1-c, 0.25, c] for c in linspace(1, 0, 4)]
+labels = ["K = "+str(K) for K in gains]
+linestyles = ('-', '-', '-', '-.')
 
-# Plot time domain response
-plt.legend(["Kc = %1.1f" % K for K in Ks])
-plt.xlabel('Time [s]')
-plt.ylim(-0.5, 2.5)
-plt.show()
+t_in = linspace(0, 50, 400)
+
+# Plot
+
+plot_setfontsizes()
+fig = plot.figure(figsize=(16, 9))
+ax = fig.add_subplot(111)
+
+for K, c, l, ls in zip(gains, plotcolours, labels, linestyles):
+    t_out, y_out = feedback(K*G, 1).step(0, t_in)
+    ax.plot(t_out, y_out, label=l, linestyle=ls, color=c)
+
+plot_doformatting(
+    ax,
+    fig=fig,
+    fig_title="Example 2.2, Figure 2.6",
+    ax_title="Effect of Proportional Gain Kc on Closed Loop Response",
+    xlabel="Response",
+    ylabel="Time (s)",
+    xlim=(0, 50),
+    ylim=(-0.5, 2.5),
+    grid=True,
+    legend=True
+)
+
+plot.show()
+
+print("For system: ", G)
+print("Poles: ", G.poles())
+print("Zeros: ", G.zeros())
