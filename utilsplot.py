@@ -58,7 +58,9 @@ def plot_setfontsizes(
 
 def plot_doformatting(
     ax, fig=None, fig_title=None, ax_title=None, xlabel=None, ylabel=None,
-    xlim=None, ylim=None, grid=False, legend=False
+    xlim=None, ylim=None, grid=False, legend=False,
+    spadj_left = None, spadj_right = None, spadj_bot = None,
+    spadj_top = None, spadj_wspc = None, spadj_hspc = None
 ):
     if fig and fig_title:
         fig.suptitle(fig_title)
@@ -83,6 +85,17 @@ def plot_doformatting(
 
     if legend:
         ax.legend()
+
+    if spadj_left or spadj_right or spadj_bot \
+        or spadj_top or spadj_wspc or spadj_hspc:
+        fig.subplots_adjust(
+            left=spadj_left,
+            right=spadj_right,
+            bottom=spadj_bot,
+            top=spadj_top,
+            wspace=spadj_wspc,
+            hspace=spadj_hspc
+        )
 
 
 def adjust_spine(xlabel, ylabel, x0=0, y0=0, width=1, height=1):
