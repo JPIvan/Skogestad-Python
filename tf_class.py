@@ -152,8 +152,8 @@ class tf(TransferFunction):
             dt (float): Sampling time
 
         Attributes:
-            numerator (iterable): Numerator polynomial
-            denominator (iterable): Denominator polynomial
+            numerator (sympy expression): Numerator polynomial
+            denominator (sympy expression): Denominator polynomial
             deadtime (int): #TODO
             zerogain (bool): #TODO
             name (str): #TODO
