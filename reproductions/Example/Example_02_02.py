@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plot
 from numpy import linspace
 
-from utils import feedback, tf, num_denom
+from utils import feedback, tf
 from utilsplot import plot_setfontsizes, plot_doformatting
 
 from scipy.signal import step
