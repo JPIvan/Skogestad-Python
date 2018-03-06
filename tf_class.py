@@ -18,7 +18,7 @@ from sympy.printing import latex
 
 import matplotlib.pyplot as plot
 
-from utilsplot import plot_setfontsizes, plot_doformatting
+from plotformat import plot_setfontsizes, plot_doformatting, plot_format
 
 init_printing()
 
@@ -443,11 +443,9 @@ class tf(TransferFunction):
 
         return __scipy_signal_step__(system, X0, T, N)
     
-    def bode_plot(self, w=None, n=100, printmargins=False):
+    def bode_plot(self, w=None, n=1000, printmargins=False, bodeplotformat=None):
         """
             Plot a bode plot of the transfer function using scipy.signal.bode()
-
-            TODO: add gain and phase margin displays
         """
 
         w, mag, phase = __scipy_signal_bode__(self, w, n)
@@ -455,55 +453,30 @@ class tf(TransferFunction):
 
         plot_setfontsizes()
         fig = plot.figure(figsize=(16, 9))
-        ax = fig.add_subplot(2, 1, 1)
+        ax1 = fig.add_subplot(2, 1, 1)
         
-        ax.semilogx(w, mag)
-        ax.semilogx(
+        ax1.semilogx(w, mag)
+        ax1.semilogx(
             [w_180, w_180], [min(mag), max(mag)],
             label="Gain Margin",
             linestyle="dotted",
             color='m'
         )
-        ax.semilogx(wc,0.1,'ro')
-        
-        plot_doformatting(
-            ax,
-            fig=fig,
-            fig_title="Example 2.3, Figure 2.7",
-            ax_title="",
-            xlabel="$\omega_{180}$",
-            ylabel="Magnitude",
-            xlim=(min(w), max(w)),
-            ylim=(min(mag), max(mag)),
-            grid=True,
-            legend=True,
-            spadj_hspc=0.25
-        )
+        ax1.semilogx(wc,0.1,'ro')
 
-        ax = fig.add_subplot(2, 1, 2)
+        ax2 = fig.add_subplot(2, 1, 2)
 
-        ax.semilogx(w, phase)
-        ax.semilogx(
+        ax2.semilogx(w, phase)
+        ax2.semilogx(
             [wc, wc], [min(phase), max(phase)],
             label="Phase Margin",
             linestyle="dotted",
             color='r'
         )
-        ax.semilogx(w_180,-180,'mo')
+        ax2.semilogx(w_180,-180,'mo')
 
-        plot_doformatting(
-            ax,
-            fig=fig,
-            fig_title="Example 2.3, Figure 2.7",
-            ax_title="",
-            xlabel="Frequency $[rad/s]$",
-            ylabel="Phase",
-            xlim=(min(w), max(w)),
-            ylim=(min(phase), max(phase)),
-            grid=True,
-            legend=True
-        )
-        
+        plot_doformatting(ax1, bodeplotformat, fig=fig, ax2=ax2)
+
         plot.show()
         if printmargins:
             print("Gain Margin: ", GM)
@@ -512,3 +485,71 @@ class tf(TransferFunction):
             print("w_180: ", w_180)
             
         return GM, PM, wc, w_180
+    
+    def bodeclosedloop_plot(self, G, K=1, w=None, n=1000, printmargins=False):
+        """
+        Shows the bode plot for a controller model
+
+        Parameters
+        ----------
+            G : tf
+                Plant transfer function.
+            K : tf
+                Controller transfer function.
+        """
+
+        if not w:
+            w = logspace(-2, 2, n)
+        elif len(w) == 2:
+            w = logspace(w[0], w[1], n)
+
+        L = ndarray([G(1j*wi) * K(1j*wi) for w in w])
+        S = utils.feedback(1, L)
+        T = utils.feedback(L, 1)
+
+        plot_setfontsizes()
+        fig = plot.figure(figsize=(16, 9))
+        ax = fig.add_subplot(2, 1, 1)
+
+        ax.subplot(2, 1, 1)
+        ax.loglog(w, abs(L), label="L")
+        ax.loglog(w, abs(S), label="S")
+        ax.loglog(w, abs(T), label="T")
+        maxes = ( max(abs(L)), max(abs(S)), max(abs(T)) )
+        mins = ( min(abs(L)), min(abs(S)), min(abs(T)) )
+
+        plotformat = plot_format(
+            fig=fig,
+            fig_title="Example 2.4, Figure 2.7",
+            ax_title="",
+            xlabel="Frequency $[rad/s]$",
+            ylabel="Magnitude",
+            xlim=(min(w), max(w)),
+            ylim=(min(mins), max(maxes)),
+            grid=True,
+            legend=True
+        )
+        plot_doformatting(ax, plotformat)
+
+        if margin:
+            plt.plot(w, 1/numpy.sqrt(2) * numpy.ones(len(w)), linestyle='dotted')
+
+        plt.subplot(2, 1, 2)
+        plt.semilogx(w, utils.phase(L, deg=True))
+        plt.semilogx(w, utils.phase(S, deg=True))
+        plt.semilogx(w, utils.phase(T, deg=True))
+        maxes = ( max(L), max(S), max(T) )
+        mins = ( min(L), min(S), min(T) )
+        
+        plotformat = plot_format(
+            fig=fig,
+            fig_title="Example 2.4, Figure 2.7",
+            ax_title="",
+            xlabel="Frequency $[rad/s]$",
+            ylabel="Phase",
+            xlim=(min(w), max(w)),
+            ylim=(min(mins), max(maxes)),
+            grid=True,
+            legend=True
+        )
+        plot_doformatting(ax, plotformat)
