@@ -21,7 +21,7 @@ if e.expand().coeff(s**2) > 0:
 else:
     s2_coeff = -1  # Negative coefficient for s**2
 
-p = Poly(e,s)
+p = Poly(e, s)
 
 bounds = []
 for coeff in p.all_coeffs()[1:]:
