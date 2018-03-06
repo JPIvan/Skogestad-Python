@@ -5,13 +5,18 @@ from numpy import array, asmatrix, dot, matrix
 from scipy.signal import TransferFunction
 from scipy.signal.filter_design import normalize
 from scipy.signal import step as __scipy_signal_step__
+from scipy.signal import bode as __scipy_signal_bode__
 
-from sympy import exp, N, poly, symbols, sympify
+from sympy import exp, N, poly, symbols, sympify, Abs, pi
 from sympy.solvers import solve
 
 from IPython.display import display, Latex, Math
 from sympy import init_printing
 from sympy.printing import latex
+
+import matplotlib.pyplot as plot
+
+from utilsplot import plot_setfontsizes, plot_doformatting
 
 init_printing()
 
@@ -58,6 +63,52 @@ def sympypoly_to_iterablepoly(sympy_poly, coeff_order='high-to-low'):
     # cannot handle sympy.Float objects
 
     return iterable_poly
+
+def __margins__(G):
+    """
+    Should only be used in functions that plot bode plots, tf class
+    implements this.
+
+    Calculates the gain and phase margins, together with the gain and phase
+    crossover frequency for a plant model
+
+    Parameters
+    ----------
+    G : tf
+        plant model
+
+    Returns
+    -------
+    GM : array containing a real number
+        gain margin
+    PM : array containing a real number
+        phase margin
+    wc : array containing a real number
+        gain crossover frequency where |G(jwc)| = 1
+    w_180 : array containing a real number
+        phase crossover frequency where angle[G(jw_180] = -180 deg
+    """
+
+    Gw = freq(G)
+
+    def mod(x):
+        """to give the function to calculate |G(jw)| = 1"""
+        return numpy.abs(Gw(x[0])) - 1
+
+    # how to calculate the freqeuncy at which |G(jw)| = 1
+    wc = optimize.fsolve(mod, 0.1)
+
+    def arg(w):
+        """function to calculate the phase angle at -180 deg"""
+        return numpy.angle(G.w(w[0])) + pi
+
+    # where the freqeuncy is calculated where arg G(jw) = -180 deg
+    w_180 = optimize.fsolve(arg, wc)
+
+    PM = numpy.angle(G.w(wc), deg=True) + 180
+    GM = 1/G.mod(w_180)
+
+    return GM, PM, wc, w_180
 
 class tf(TransferFunction):
     """
@@ -137,10 +188,15 @@ class tf(TransferFunction):
 
             Effectively, this makes a tf object behave just like a function
             of s.
-        """
 
-        return self.numerator.subs('s', s)/self.denominator.subs('s', s) \
+            TODO: Handle numpy arrays
+        """
+        try:
+            return self.numerator.subs('s', s)/self.denominator.subs('s', s) \
             * N(exp(-s*self.deadtime))
+        except:
+            print(s)
+            print(type(s))
 
     def __repr__(self):
         """
@@ -336,6 +392,98 @@ class tf(TransferFunction):
         self.num, self.den = normalize(
             self.num, self.den
         )
+
+    def w(self, w):
+        """
+        Returns the tf at a given frequency.
+
+        Casting to a complex is performed to avoid type issues in the caller
+
+        Parameters
+        ----------
+        w : frequency
+
+        Returns
+        -------
+        G(jw) : tf response
+        """
+        return complex(self(1j*w))
+
+    def mod(self, w):
+        """
+        Returns the magnitude of the tf at a given frequency.
+
+        sympy.abs is used for compatibility with the current implementation
+        of the tf class
+        Casting to a float is performed to avoid type issues in the caller
+
+        Parameters
+        ----------
+        w : frequency
+
+        Returns
+        -------
+        |G(jw)| : magnitude of tf response
+        """
+        return float(Abs(self.w(w)))
         
     def step(system, X0=None, T=None, N=None):
+        """
+            Defined for compatibility with function that called the old
+            tf class.
+
+            New code should use scipy.signal.step
+        """
+
         return __scipy_signal_step__(system, X0, T, N)
+    
+    def bode_plot(self, w=None, n=100):
+        """
+            Plot a bode plot of the transfer function using scipy.signal.bode()
+
+            TODO: add gain and phase margin displays
+        """
+
+        w, mag, phase = __scipy_signal_bode__(self, w, n)
+        GM, PM, wc, w_180 = __margins__(self)
+
+        plot_setfontsizes()
+        fig = plot.figure(figsize=(16, 9))
+        ax = fig.add_subplot(2, 1, 1)
+        
+        ax.semilogx(w, mag)    # Bode magnitude plot
+        
+        plot_doformatting(
+            ax,
+            fig=fig,
+            fig_title="Example 2.3, Figure 2.7",
+            ax_title="",
+            xlabel="$\omega_{180}$",
+            ylabel="Magnitude",
+            xlim=(min(w), max(w)),
+            ylim=(min(mag), max(mag)),
+            grid=True,
+            legend=True,
+            spadj_hspc=0.25
+        )
+        
+        ax = fig.add_subplot(2, 1, 2)
+
+        plot_doformatting(
+            ax,
+            fig=fig,
+            fig_title="Example 2.3, Figure 2.7",
+            ax_title="",
+            xlabel="Frequency $[rad/s]$",
+            ylabel="Phase",
+            xlim=(min(w), max(w)),
+            ylim=(min(phase), max(phase)),
+            grid=True,
+            legend=True
+        )
+
+        ax.semilogx(w, phase)  # Bode phase plot
+        
+        plot.show()
+        print("Gain Margin: ", GM)
+        print("Phase Margin: ", PM)
