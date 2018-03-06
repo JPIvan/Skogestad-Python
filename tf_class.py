@@ -1,17 +1,24 @@
 from copy import copy
 
-from numpy import array, asmatrix, dot, matrix
+from numpy import array, asmatrix, dot, matrix, ndarray, angle
+
+from scipy import optimize
 
 from scipy.signal import TransferFunction
 from scipy.signal.filter_design import normalize
 from scipy.signal import step as __scipy_signal_step__
+from scipy.signal import bode as __scipy_signal_bode__
 
-from sympy import exp, N, poly, symbols, sympify
+from sympy import exp, N, poly, symbols, sympify, Abs, pi
 from sympy.solvers import solve
 
 from IPython.display import display, Latex, Math
 from sympy import init_printing
 from sympy.printing import latex
+
+import matplotlib.pyplot as plot
+
+from plotformat import plot_setfontsizes, plot_doformatting, plot_format
 
 init_printing()
 
@@ -59,6 +66,56 @@ def sympypoly_to_iterablepoly(sympy_poly, coeff_order='high-to-low'):
 
     return iterable_poly
 
+def __margins__(G):
+    """
+    Should only be used in functions that plot bode plots, tf class
+    implements this.
+
+    Calculates the gain and phase margins, together with the gain and phase
+    crossover frequency for a plant model
+
+    Parameters
+    ----------
+    G : tf
+        plant model
+
+    Returns
+    -------
+    GM : array containing a real number
+        gain margin
+    PM : array containing a real number
+        phase margin
+    wc : array containing a real number
+        gain crossover frequency where |G(jwc)| = 1
+    w_180 : array containing a real number
+        phase crossover frequency where angle[G(jw_180] = -180 deg
+    """
+
+    def mod(x):
+        """to give the function to calculate |G(jw)| = 1"""
+        if isinstance(x, ndarray):
+            return G.mod(x[0]) - 1
+        else:
+            return G.mod(x) - 1
+
+    # how to calculate the freqeuncy at which |G(jw)| = 1
+    wc = optimize.fsolve(mod, 0.1)[0]
+
+    def arg(x):
+        """function to calculate the phase angle at -180 deg"""
+        if isinstance(x, ndarray):
+            return angle(G.w(x[0])) + pi
+        else:
+            return angle(G.w(x)) + pi
+
+    # where the freqeuncy is calculated where arg G(jw) = -180 deg
+    w_180 = optimize.fsolve(arg, wc)[0]
+
+    PM = angle(G.w(wc), deg=True) + 180
+    GM = 1/G.mod(w_180)
+
+    return GM, PM, wc, w_180
+
 class tf(TransferFunction):
     """
         Creates a Transfer Function object with methos inherited from the
@@ -95,8 +152,8 @@ class tf(TransferFunction):
             dt (float): Sampling time
 
         Attributes:
-            numerator (iterable): Numerator polynomial
-            denominator (iterable): Denominator polynomial
+            numerator (sympy expression): Numerator polynomial
+            denominator (sympy expression): Denominator polynomial
             deadtime (int): #TODO
             zerogain (bool): #TODO
             name (str): #TODO
@@ -137,10 +194,15 @@ class tf(TransferFunction):
 
             Effectively, this makes a tf object behave just like a function
             of s.
-        """
 
-        return self.numerator.subs('s', s)/self.denominator.subs('s', s) \
+            TODO: Handle numpy arrays
+        """
+        try:
+            return self.numerator.subs('s', s)/self.denominator.subs('s', s) \
             * N(exp(-s*self.deadtime))
+        except:
+            print(s)
+            print(type(s))
 
     def __repr__(self):
         """
@@ -336,6 +398,158 @@ class tf(TransferFunction):
         self.num, self.den = normalize(
             self.num, self.den
         )
+
+    def w(self, w):
+        """
+        Returns the tf at a given frequency.
+
+        Casting to a complex is performed to avoid type issues in the caller
+
+        Parameters
+        ----------
+        w : frequency
+
+        Returns
+        -------
+        G(jw) : tf response
+        """
+        return complex(self(1j*w))
+
+    def mod(self, w):
+        """
+        Returns the magnitude of the tf at a given frequency.
+
+        sympy.abs is used for compatibility with the current implementation
+        of the tf class
+        Casting to a float is performed to avoid type issues in the caller
+
+        Parameters
+        ----------
+        w : frequency
+
+        Returns
+        -------
+        |G(jw)| : magnitude of tf response
+        """
+        return float(Abs(self.w(w)))
         
     def step(system, X0=None, T=None, N=None):
+        """
+            Defined for compatibility with function that called the old
+            tf class.
+
+            New code should use scipy.signal.step
+        """
+
         return __scipy_signal_step__(system, X0, T, N)
+    
+    def bode_plot(self, w=None, n=1000, printmargins=False, bodeplotformat=None):
+        """
+            Plot a bode plot of the transfer function using scipy.signal.bode()
+        """
+
+        w, mag, phase = __scipy_signal_bode__(self, w, n)
+        GM, PM, wc, w_180 = __margins__(self)
+
+        plot_setfontsizes()
+        fig = plot.figure(figsize=(16, 9))
+        ax1 = fig.add_subplot(2, 1, 1)
+        
+        ax1.semilogx(w, mag)
+        ax1.semilogx(
+            [w_180, w_180], [min(mag), max(mag)],
+            label="Gain Margin",
+            linestyle="dotted",
+            color='m'
+        )
+        ax1.semilogx(wc,0.1,'ro')
+
+        ax2 = fig.add_subplot(2, 1, 2)
+
+        ax2.semilogx(w, phase)
+        ax2.semilogx(
+            [wc, wc], [min(phase), max(phase)],
+            label="Phase Margin",
+            linestyle="dotted",
+            color='r'
+        )
+        ax2.semilogx(w_180,-180,'mo')
+
+        plot_doformatting(ax1, bodeplotformat, fig=fig, ax2=ax2)
+
+        plot.show()
+        if printmargins:
+            print("Gain Margin: ", GM)
+            print("w_c: ", wc)
+            print("Phase Margin: ", PM)
+            print("w_180: ", w_180)
+            
+        return GM, PM, wc, w_180
+    
+    def bodeclosedloop_plot(self, G, K=1, w=None, n=1000, printmargins=False):
+        """
+        Shows the bode plot for a controller model
+
+        Parameters
+        ----------
+            G : tf
+                Plant transfer function.
+            K : tf
+                Controller transfer function.
+        """
+
+        if not w:
+            w = logspace(-2, 2, n)
+        elif len(w) == 2:
+            w = logspace(w[0], w[1], n)
+
+        L = ndarray([G(1j*wi) * K(1j*wi) for w in w])
+        S = utils.feedback(1, L)
+        T = utils.feedback(L, 1)
+
+        plot_setfontsizes()
+        fig = plot.figure(figsize=(16, 9))
+        ax = fig.add_subplot(2, 1, 1)
+
+        ax.subplot(2, 1, 1)
+        ax.loglog(w, abs(L), label="L")
+        ax.loglog(w, abs(S), label="S")
+        ax.loglog(w, abs(T), label="T")
+        maxes = ( max(abs(L)), max(abs(S)), max(abs(T)) )
+        mins = ( min(abs(L)), min(abs(S)), min(abs(T)) )
+
+        plotformat = plot_format(
+            fig=fig,
+            fig_title="Example 2.4, Figure 2.7",
+            ax_title="",
+            xlabel="Frequency $[rad/s]$",
+            ylabel="Magnitude",
+            xlim=(min(w), max(w)),
+            ylim=(min(mins), max(maxes)),
+            grid=True,
+            legend=True
+        )
+        plot_doformatting(ax, plotformat)
+
+        if margin:
+            plt.plot(w, 1/numpy.sqrt(2) * numpy.ones(len(w)), linestyle='dotted')
+
+        plt.subplot(2, 1, 2)
+        plt.semilogx(w, utils.phase(L, deg=True))
+        plt.semilogx(w, utils.phase(S, deg=True))
+        plt.semilogx(w, utils.phase(T, deg=True))
+        maxes = ( max(L), max(S), max(T) )
+        mins = ( min(L), min(S), min(T) )
+        
+        plotformat = plot_format(
+            fig=fig,
+            fig_title="Example 2.4, Figure 2.7",
+            ax_title="",
+            xlabel="Frequency $[rad/s]$",
+            ylabel="Phase",
+            xlim=(min(w), max(w)),
+            ylim=(min(mins), max(maxes)),
+            grid=True,
+            legend=True
+        )
+        plot_doformatting(ax, plotformat)
