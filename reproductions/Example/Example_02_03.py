@@ -2,6 +2,7 @@ from numpy import logspace
 from sympy import solve, symbols, im, Poly, And
 
 from utils import tf
+from plotformat import *
 
 
 # Define system
@@ -41,6 +42,19 @@ print("Frequency at Kc = {:5f}: {:5f}".format(
 
 print("\nUsing Method 2:")
 
-_, _, _, w_180 = G.bode_plot(w=logspace(-2, 1, 1000), printmargins=True)
+bpf = bode_plot_format(
+    fig_title="Example 2.3, Figure 2.7",
+    ax_title_mag="",
+    xlabel_mag="$\omega_{180}$",
+    ylabel_mag="Magnitude",
+    ax_title_phase="",
+    xlabel_phase="Frequency $[rad/s]$",
+    ylabel_phase="Phase",
+    grid=True,
+    legend=True,
+    subplotadj_hspace=0.25
+)
+
+_, _, _, w_180 = G.bode_plot(w=logspace(-2, 1, 1000), printmargins=True, bodeplotformat=bpf)
 print("\n|L(jw_180)| = {:5f}Kc".format(G.mod(w_180)))
 print("Therefore stable for Kc < 2.5")

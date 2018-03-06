@@ -2,7 +2,7 @@ import matplotlib.pyplot as plot
 from numpy import linspace
 
 from utils import feedback, tf
-from utilsplot import plot_setfontsizes, plot_doformatting
+from plotformat import *
 
 from scipy.signal import step
 
@@ -30,8 +30,7 @@ for K, c, l, ls in zip(gains, plotcolours, labels, linestyles):
     t_out, y_out = feedback(K*G, 1).step(0, t_in)
     ax.plot(t_out, y_out, label=l, linestyle=ls, color=c)
 
-plot_doformatting(
-    ax,
+plotformat = plot_format(
     fig=fig,
     fig_title="Example 2.2, Figure 2.6",
     ax_title="Effect of Proportional Gain Kc on Closed Loop Response",
@@ -42,6 +41,7 @@ plot_doformatting(
     grid=True,
     legend=True
 )
+plot_doformatting(ax, plotformat)
 
 plot.show()
 

@@ -42,62 +42,6 @@ import matplotlib.pyplot as plt
 import utils
 import doc_func as df
 
-
-def plot_setfontsizes(
-    figure_title=28, axes_title=24, axes_label=20, legend=16, xtick=16,
-    ytick=16, font=8
-):
-    plt.rc('figure', titlesize=figure_title)
-    plt.rc('axes', titlesize=axes_title)
-    plt.rc('axes', labelsize=axes_label)
-    plt.rc('xtick', labelsize=xtick)
-    plt.rc('ytick', labelsize=ytick)
-    plt.rc('legend', fontsize=legend)
-    plt.rc('font', size=font)
-
-
-def plot_doformatting(
-    ax, fig=None, fig_title=None, ax_title=None, xlabel=None, ylabel=None,
-    xlim=None, ylim=None, grid=False, legend=False,
-    spadj_left = None, spadj_right = None, spadj_bot = None,
-    spadj_top = None, spadj_wspc = None, spadj_hspc = None
-):
-    if fig and fig_title:
-        fig.suptitle(fig_title)
-
-    if ax_title:
-        ax.set_title(ax_title)
-
-    if xlabel:
-        ax.set_xlabel(xlabel)
-
-    if ylabel:
-        ax.set_ylabel(ylabel)
-
-    if xlim:
-        ax.set_xlim(xlim)
-
-    if ylim:
-        ax.set_ylim(ylim)
-
-    if grid:
-        ax.grid()
-
-    if legend:
-        ax.legend()
-
-    if spadj_left or spadj_right or spadj_bot \
-        or spadj_top or spadj_wspc or spadj_hspc:
-        fig.subplots_adjust(
-            left=spadj_left,
-            right=spadj_right,
-            bottom=spadj_bot,
-            top=spadj_top,
-            wspace=spadj_wspc,
-            hspace=spadj_hspc
-        )
-
-
 def adjust_spine(xlabel, ylabel, x0=0, y0=0, width=1, height=1):
     """
     General function to adjust the margins for subplots.
