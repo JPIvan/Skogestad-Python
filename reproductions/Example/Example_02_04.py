@@ -2,7 +2,7 @@ from __future__ import print_function
 import matplotlib.pyplot as plt
 import numpy as np
 
-from utils import feedback, tf, marginsclosedloop, ControllerTuning, maxpeak
+from utils import tf, marginsclosedloop, ControllerTuning, maxpeak
 from utilsplot import step_response_plot, bodeclosedloop
 
 from plotformat import *
@@ -20,8 +20,8 @@ print('Pu: {:.4f}'.format(Pu))
 
 K = Kc*(1 + 1/(Taui*s))
 L = G * K
-T = feedback(L, 1)
-S = feedback(1, L)
+T = L/(1+L)
+S = 1/(1+L)
 u = S * K
 
 plt.figure('Figure 2.8')
