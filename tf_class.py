@@ -132,13 +132,8 @@ def __phase__(z, deg=False):
     phase : float
         Phase angle.
 
-   """
-    if deg:
-        discont = 180
-    else:
-        discont = numpy.pi
-        
-    return numpy.angle(z, deg=deg) - discont
+    """
+    return numpy.angle(z, deg=deg)
 
 class tf(TransferFunction):
     """
@@ -563,6 +558,14 @@ class tf(TransferFunction):
         L_phase = [__phase__(complex(i), deg=True) for i in L]
         S_phase = [__phase__(complex(i), deg=True) for i in S]
         T_phase = [__phase__(complex(i), deg=True) for i in T]
+
+        for F in [L_phase, S_phase, T_phase]:
+            for i, v in enumerate(F):
+                if i == 0:
+                    continue
+                if abs(v) > 90:
+                    if not (v >= 0) == (F[i-1] >= 0):
+                        F[i] = 360*(2*(F[i-1] >= 0) - 1) + v
 
         ax2.semilogx(w, L_phase)
         ax2.semilogx(w, S_phase)
